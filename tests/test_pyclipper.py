@@ -31,9 +31,6 @@ class TestPyclipperModule(TestCase):
 
 
 class TestNamespaceMethods(TestCase):
-    def setUp(self):
-        pyclipper.SCALING_FACTOR = 1
-
     def test_orientation(self):
         self.assertFalse(pyclipper.Orientation(PATH_SUBJ_1))
         self.assertTrue(pyclipper.Orientation(PATH_SUBJ_1[::-1]))
@@ -160,7 +157,6 @@ class TestFilterPyPolyNode(TestCase):
 
 class TestPyclipperAddPaths(TestCase):
     def setUp(self):
-        pyclipper.SCALING_FACTOR = 1
         self.pc = pyclipper.Pyclipper()
 
     def test_add_path(self):
@@ -196,16 +192,13 @@ class TestClassProperties(TestCase):
             self.check_property_assignment(pc, prop_name, [True, False])
 
     def test_pyclipperoffset_properties(self):
-        for factor in range(6):
-            pyclipper.SCALING_FACTOR = 10 ** factor
-            pc = pyclipper.PyclipperOffset()
-            for prop_name in ('MiterLimit', 'ArcTolerance'):
-                self.check_property_assignment(pc, prop_name, [2.912, 132.12, 12, -123])
+        pc = pyclipper.PyclipperOffset()
+        for prop_name in ('MiterLimit', 'ArcTolerance'):
+            self.check_property_assignment(pc, prop_name, [2.912, 132.12, 12, -123])
 
 
 class TestPyclipperExecute(TestCase):
     def setUp(self):
-        pyclipper.SCALING_FACTOR = 1
         self.pc = pyclipper.Pyclipper()
         self.add_default_paths(self.pc)
         self.default_args = [pyclipper.CT_INTERSECTION, pyclipper.PFT_EVENODD, pyclipper.PFT_EVENODD]
@@ -243,29 +236,6 @@ class TestPyclipperExecute(TestCase):
         solution = self.pc.Execute(*self.default_args)
         self.assertEqual(len(solution), 0)
 
-    def test_scaling(self):
-        test_factor = 10000
-        test_clip = _modify_vertices(PATH_CLIP_1, addend=0.23591)
-        test_subj_1 = _modify_vertices(PATH_SUBJ_1, addend=0.28591)
-        test_subj_2 = _modify_vertices(PATH_SUBJ_2, addend=0.52391)
-
-        pyclipper.SCALING_FACTOR = test_factor
-        pc = pyclipper.Pyclipper()
-        self.add_paths(pc, test_clip, [test_subj_1, test_subj_2])
-        scaled_solution = pc.Execute(*self.default_args)
-
-        pyclipper.SCALING_FACTOR = 1
-        pc = pyclipper.Pyclipper()
-        self.add_paths(pc, test_clip, [test_subj_1, test_subj_2], multiplier=test_factor)
-        manualy_scaled = pc.Execute(*self.default_args)
-
-        self.assertEqual(len(scaled_solution), len(manualy_scaled))
-
-        manualy_scaled[0] = _modify_vertices(manualy_scaled[0], multiplier=1.0 / test_factor)
-        manualy_scaled[1] = _modify_vertices(manualy_scaled[1], multiplier=1.0 / test_factor)
-
-        self.assertTrue(_do_solutions_match(manualy_scaled, scaled_solution, test_factor))
-
     def test_exact_results(self):
         """
         Test whether coordinates passed into the library are returned exactly, if they are not affected by the operation.
@@ -294,35 +264,10 @@ class TestPyclipperExecute(TestCase):
 
 
 class TestPyclipperOffset(TestCase):
-    def setUp(self):
-        pyclipper.SCALING_FACTOR = 1
-
     @staticmethod
     def add_path(pc, path):
         pc.AddPath(path, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-
-    def test_path_scaling(self):
-        test_factor = 10000
-        test_path = _modify_vertices(PATH_CLIP_1, addend=0.23591)
-        # paths and solution scaled by Pyclipper
-        pyclipper.SCALING_FACTOR = test_factor
-        pc = pyclipper.PyclipperOffset(miter_limit=2.0, arc_tolerance=0.25)
-        self.add_path(pc, test_path)
-        scaled_solution = pc.Execute(2.2)
-
-        # manualy scaled
-        pyclipper.SCALING_FACTOR = 1
-        pc = pyclipper.PyclipperOffset(miter_limit=2.0, arc_tolerance=0.25 * test_factor)
-        self.add_path(pc, _modify_vertices(test_path, multiplier=test_factor))
-        control_solution = pc.Execute(2.2 * test_factor)
-
-        self.assertEqual(len(scaled_solution), len(control_solution))
-        self.assertEqual(len(scaled_solution), 1)
-
-        control_solution = [_modify_vertices(control_solution[0], multiplier=1.0 / test_factor)]
-
-        self.assertTrue(_do_solutions_match(control_solution, scaled_solution, test_factor))
-
+    
     def test_execute(self):
         pc = pyclipper.PyclipperOffset()
         self.add_path(pc, PATH_CLIP_1)
